@@ -1,9 +1,11 @@
-from email.mime import text
+
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from . models import Messages, Room
 from django.core.serializers.json import DjangoJSONEncoder
+
+active_users = {}
 class ChatConsumer(AsyncWebsocketConsumer):
    async def connect(self):
       self.room_name = self.scope['url_route']['kwargs']['room_name']
@@ -21,6 +23,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.channel_name
             )
       await self.accept()
+      if self.room_name not in active_users:
+         active_users[self.room_name] = []
+      active_users[self.room_name].append(self.username)
+
       await self.channel_layer.group_send(self.room_name,{'type': 'chat_message',
                                                            'username':'system',
                                                            'content':f"{self.username} has joined the chat"
@@ -31,10 +37,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
       
 
    async def disconnect(self,close_code):
+     await self.channel_layer.group_send(self.room_name,{'type':'chat_message',
+                                   'username':'system',
+                                 'content':f"{self.username} has left the chat"
+                                 })
+
      await self.channel_layer.group_discard(
        self.room_name,
        self.channel_name
      )
+     if self.room_name in active_users:
+         active_users[self.room_name].remove(self.username)
+     
       
 
    async def receive(self,text_data):
