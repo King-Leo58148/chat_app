@@ -1,9 +1,13 @@
+from email.mime import text
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+from asgiref.sync import sync_to_async
 from . models import Messages, Room
+from django.core.serializers.json import DjangoJSONEncoder
 class ChatConsumer(AsyncWebsocketConsumer):
    async def connect(self):
       self.room_name = self.scope['url_route']['kwargs']['room_name']
+      self.username = self.scope['url_route']['kwargs']['username']
       try: 
          await Room.objects.aget(name=self.room_name)
       except Room.DoesNotExist:
@@ -17,6 +21,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.channel_name
             )
       await self.accept()
+      await self.channel_layer.group_send(self.room_name,{'type': 'chat_message',
+                                                           'username':'system',
+                                                           'content':f"{self.username} has joined the chat"
+                                 })
+      messages = await sync_to_async(list)(
+         Messages.objects.filter(room__name=self.room_name).order_by('time_stamp').values('content','username','reaction','time_stamp'))
+      await self.send(text_data=json.dumps(messages,cls=DjangoJSONEncoder))
+      
 
    async def disconnect(self,close_code):
      await self.channel_layer.group_discard(
@@ -30,13 +42,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
      
      room = await Room.objects.aget(name=self.room_name)
      await Messages.objects.acreate(content=data['content'],
-                                    username = data['username'],
+                                    username = self.username,
                                     reaction = data.get('reaction',None),
                                     room = room
                                     )
 
      await self.channel_layer.group_send(self.room_name,{'type': 'chat_message', 
-                                                           'username':data['username'],
+                                                           'username':self.username,
                                                            'content':data['content'],
                                     'reaction':data.get('reaction',None),
                                  }) 
@@ -44,6 +56,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
    async def chat_message(self,event):
      event = json.dumps(event)
      await self.send(text_data=event)
+   
      
     
 
