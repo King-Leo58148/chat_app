@@ -6,4 +6,3 @@ urlpatterns = [
     path('count_active_users/<str:room_name>/',count_active_users,name='count-active-users')
   
 ]
-##
