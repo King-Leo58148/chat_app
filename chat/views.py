@@ -5,7 +5,7 @@ from rest_framework.generics import CreateAPIView
 from  . consumers import active_users
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-# Create your views here.
+
 class CreateRoomView(CreateAPIView):
     serializer_class=RoomSerializer
 
