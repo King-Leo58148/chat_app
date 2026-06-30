@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 class CreateRoomView(CreateAPIView):
     serializer_class=RoomSerializer
-
+#
 
 @api_view(['GET'])
 def count_active_users(request,room_name):
